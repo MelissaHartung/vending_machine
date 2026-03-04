@@ -1,9 +1,10 @@
+import 'package:snack_automat/models/product.dart';
+
 enum TransactionStatus { active, cancel, completed, failed }
 
 class Transaction {
   final String transactionId;
-  String? productId;
-  int price;
+  final Product product;
   int amountPaid;
   TransactionStatus status;
 
@@ -12,26 +13,18 @@ class Transaction {
 
   Transaction({
     required this.transactionId,
-    this.productId,
-    this.price = 0,
+    required this.product,
     this.amountPaid = 0, // Startet bei 0
     this.status = TransactionStatus.active, // Startet als "aktiv"
     List<int>? insertedCoins, // Optional beim Start
-    List<int>? changeCoins, // Optional beim Start
+    List<int>? changeCoins,
   }) : insertedCoins = insertedCoins ?? [],
        changeCoins = changeCoins ?? [];
 
+  int get price => product.price;
+
   int get missingAmount {
     return price - amountPaid;
-  }
-
-  void updatePayment(int coinValue) {
-    insertedCoins.add(coinValue);
-    amountPaid = amountPaid + coinValue;
-  }
-
-  void cancelTransaction() {
-    status = TransactionStatus.cancel;
   }
 
   void completeTransaction(List<int> changeCoins) {
@@ -43,8 +36,21 @@ class Transaction {
     status = TransactionStatus.failed;
   }
 
-  void setProduct(String newproductId, int price) {
-    productId = newproductId;
-    this.price = price;
+  Transaction copyWith({
+    String? transactionId,
+    Product? product,
+    int? amountPaid,
+    TransactionStatus? status,
+    List<int>? insertedCoins,
+    List<int>? changeCoins,
+  }) {
+    return Transaction(
+      transactionId: transactionId ?? this.transactionId,
+      product: product ?? this.product,
+      amountPaid: amountPaid ?? this.amountPaid,
+      status: status ?? this.status,
+      insertedCoins: insertedCoins ?? this.insertedCoins,
+      changeCoins: changeCoins ?? this.changeCoins,
+    );
   }
 }

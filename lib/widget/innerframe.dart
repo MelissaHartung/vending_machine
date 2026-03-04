@@ -1,41 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:snack_automat/models/product.dart';
 import 'package:snack_automat/models/transaction.dart';
+import 'package:snack_automat/provider/app_state_notifier.dart';
 import 'package:snack_automat/storage/snack_service.dart';
 import 'package:snack_automat/widget/slotTile.dart';
 import 'package:snack_automat/models/slot.dart';
 import 'package:snack_automat/widget/coin_menu.dart';
 import 'package:snack_automat/models/coinbox.dart';
 
-class Innerframe extends StatefulWidget {
+class Innerframe extends ConsumerStatefulWidget {
   @override
-  State<Innerframe> createState() => _InnerframeState();
+  ConsumerState<Innerframe> createState() => _InnerframeState();
 }
 
-class _InnerframeState extends State<Innerframe> {
-  Transaction? _currentTransaction;
+class _InnerframeState extends ConsumerState<Innerframe> {
   Product? _selectedProduct;
   String _displaymassage = '';
   Product? _dispensedProduct;
 
-  List<Slot> _slots = [];
-  final SnackService _service = SnackService();
-  final Coinbox _coinBox = Coinbox();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSlots();
-  }
-
-  void _loadSlots() {
-    setState(() {
-      _slots = _service.getSlots();
-    });
-  }
-
-  double get _currentBalance {
-    return (_currentTransaction?.amountPaid ?? 0) / 100;
+  double getCurrentBalance(Transaction? transaction) {
+    return (transaction?.amountPaid ?? 0) / 100;
   }
 
   void _showCoinMenu() {
@@ -44,13 +29,8 @@ class _InnerframeState extends State<Innerframe> {
       builder: (BuildContext context) {
         return CoinMenu(
           onCoinTap: (double value) {
-            setState(() {
-              _currentTransaction ??= Transaction(
-                transactionId: UniqueKey().toString(),
-              );
-              int cents = (value * 100).round();
-              _currentTransaction!.updatePayment(cents);
-            });
+            int cents = (value * 100).round();
+            ref.read(appStateProvider.notifier).insertCoin(cents);
           },
         );
       },
@@ -59,6 +39,12 @@ class _InnerframeState extends State<Innerframe> {
 
   @override
   Widget build(BuildContext context) {
+    final appState = ref.watch(appStateProvider);
+    final _slots = appState.slots;
+    final _coinBox = appState.coinbox;
+    final _currentTransaction = appState.currentTransaction;
+    final _currentBalance = getCurrentBalance(_currentTransaction);
+
     return Container(
       decoration: BoxDecoration(
         color: const Color.fromARGB(255, 3, 92, 87),
@@ -87,21 +73,11 @@ class _InnerframeState extends State<Innerframe> {
                     slot: slot,
 
                     onTap: () {
+                      ref
+                          .read(appStateProvider.notifier)
+                          .selectProduct(slot.product.id);
                       setState(() {
                         _selectedProduct = slot.product;
-
-                        if (_currentTransaction != null) {
-                          _currentTransaction!.setProduct(
-                            slot.product.id,
-                            slot.product.price,
-                          );
-                        } else {
-                          _currentTransaction = Transaction(
-                            transactionId: UniqueKey().toString(),
-                            productId: slot.product.id,
-                            price: slot.product.price,
-                          );
-                        }
                       });
                     },
                     selected: _selectedProduct?.id == slot.product.id,
@@ -133,7 +109,7 @@ class _InnerframeState extends State<Innerframe> {
                                 ? 'Bitte Produkt wählen'
                                 : '${_currentBalance.toStringAsFixed(2)} €'),
                       style: TextStyle(
-                        fontSize: _currentBalance == 0 ? 12 : 18,
+                        fontSize: _currentBalance == 0 ? 12 : 12,
                         fontWeight: FontWeight.bold,
                         color: Color.fromARGB(255, 76, 248, 53),
                       ),
@@ -211,24 +187,18 @@ class _InnerframeState extends State<Innerframe> {
                   ElevatedButton(
                     onPressed: () {
                       if (_currentTransaction != null) {
-                        PaymentResult result = _coinBox.processPayment(
-                          _currentTransaction!.price,
-                          _currentTransaction!.insertedCoins,
-                        );
-                        if (result.success) {
+                        try {
+                          ref
+                              .read(appStateProvider.notifier)
+                              .completePurchase();
                           setState(() {
-                            _dispensedProduct = _selectedProduct;
-                            _currentTransaction!.completeTransaction(
-                              result.changeCoins,
-                            );
+                            _dispensedProduct = _currentTransaction!.product;
+                            _displaymassage = 'Viel Spaß mit deinem Snack!';
                             _selectedProduct = null;
-                            _currentTransaction = null;
                           });
-                        } else {
+                        } catch (e) {
                           setState(() {
-                            _currentTransaction!.failTransaction();
-                            _selectedProduct = null;
-                            _currentTransaction = null;
+                            _displaymassage = e.toString();
                           });
                         }
                       }
@@ -252,12 +222,12 @@ class _InnerframeState extends State<Innerframe> {
                   ElevatedButton(
                     onPressed: () {
                       if (_currentTransaction != null) {
-                        setState(() {
-                          _currentTransaction!.cancelTransaction();
-                          _selectedProduct = null;
-                          _currentTransaction = null;
-                        });
+                        ref.read(appStateProvider.notifier).cancelTransaction();
                       }
+                      setState(() {
+                        _displaymassage = '';
+                        _selectedProduct = null;
+                      });
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color.fromARGB(255, 1, 46, 40),
