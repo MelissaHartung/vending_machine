@@ -27,18 +27,17 @@ class Slottile extends StatelessWidget {
           color: disabled
               ? const Color.fromARGB(255, 200, 200, 200)
               : selected
-              ? const Color.fromARGB(255, 8, 133, 122)
-              : const Color.fromARGB(255, 0, 49, 43),
+              ? const Color.fromARGB(255, 92, 4, 77)
+              : const Color.fromARGB(255, 172, 57, 156),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected
-                ? const Color.fromARGB(255, 1, 80, 69)
-                : const Color.fromARGB(255, 1, 80, 69),
+                ? const Color.fromARGB(255, 80, 1, 67)
+                : const Color.fromARGB(255, 73, 1, 80),
             width: 2,
           ),
         ),
         child: Column(
-          
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(height: 10),
@@ -46,7 +45,6 @@ class Slottile extends StatelessWidget {
             const SizedBox(height: 5),
 
             Text(
-        
               '${prices.toStringAsFixed(2)} €',
               style: TextStyle(
                 color: disabled ? Colors.grey : Colors.white,

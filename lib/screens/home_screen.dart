@@ -33,11 +33,11 @@ class Homescreen extends StatelessWidget {
                         ),
                       ],
                       border: Border.all(
-                        color: const Color.fromARGB(255, 1, 43, 41),
+                        color: const Color.fromARGB(255, 80, 2, 69),
                         width: 2,
                       ),
                       borderRadius: BorderRadius.circular(10),
-                      color: const Color.fromARGB(255, 2, 145, 133),
+                      color: const Color.fromARGB(255, 180, 112, 177),
                     ),
                     child: Innerframe(),
                   ),
@@ -49,6 +49,10 @@ class Homescreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                       horizontal: 150,
                       vertical: 10,
+                    ),
+                    side: BorderSide(
+                      color: const Color.fromARGB(255, 194, 194, 194),
+                      width: 2,
                     ),
                   ),
                   onPressed: () {
