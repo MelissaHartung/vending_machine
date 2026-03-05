@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:snack_automat/models/coin.dart';
 
 class CoinMenu extends StatelessWidget {
-  final Function(double) onCoinTap;
+  final Function(int) onCoinTap;
 
   const CoinMenu({super.key, required this.onCoinTap});
 
@@ -36,8 +36,8 @@ class CoinMenu extends StatelessWidget {
                     padding: const EdgeInsets.all(5),
                     backgroundColor: Colors.white,
                   ),
-                  // WICHTIG: Wir wandeln die Cents (int) hier in Euro (double) um
-                  onPressed: () => onCoinTap(coins[index] / 100),
+
+                  onPressed: () => onCoinTap(coins[index]),
                   child: Image.asset(
                     Coin.getImage(coins[index]),
                     fit: BoxFit.contain,
