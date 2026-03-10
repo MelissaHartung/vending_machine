@@ -23,4 +23,11 @@ class Slot {
       quantity--;
     }
   }
+
+  Slot copyWith({Product? product, int? quantity}) {
+    return Slot(
+      product: product ?? this.product,
+      quantity: quantity ?? this.quantity,
+    );
+  }
 }

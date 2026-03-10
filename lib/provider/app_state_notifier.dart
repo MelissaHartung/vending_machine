@@ -3,11 +3,15 @@ import 'package:snack_automat/models/app_state.dart';
 import 'package:snack_automat/models/coinbox.dart';
 import 'package:snack_automat/models/slot.dart';
 import 'package:snack_automat/models/transaction.dart';
-import 'package:snack_automat/storage/snack_service.dart';
+import 'package:snack_automat/storage/data_repository.dart';
+import 'package:snack_automat/storage/repository_provider.dart';
 
 class AppStateNotifier extends Notifier<Appstate> {
+  DataRepository get _repository => ref.read(dataRepositoryProvider);
+
   @override
   Appstate build() {
+    _loadInitialData();
     return Appstate(
       slots: _createInitialSlots(),
       coinbox: Coinbox(),
@@ -15,9 +19,15 @@ class AppStateNotifier extends Notifier<Appstate> {
     );
   }
 
+  Future<void> _loadInitialData() async {
+    final slots = await _repository.getSlots();
+    final coinbox = await _repository.getCoinbox();
+    state = state.copyWith(slots: slots, coinbox: coinbox);
+  }
+
   List<Slot> _createInitialSlots() {
-    final service = SnackService();
-    return service.getSlots();
+    // Leere Liste zurückgeben, da _loadInitialData die echten Daten lädt.
+    return [];
   }
 
   void selectProduct(String productId) {
@@ -38,7 +48,7 @@ class AppStateNotifier extends Notifier<Appstate> {
   void insertCoin(int coinValue) {
     // Prüfe ob Transaction existiert
     if (state.currentTransaction == null) {
-      throw Exception('Keine aktive Transaktion');
+      return;
     }
 
     // Erstelle neue Transaction mit aktualisiertem Betrag
@@ -66,28 +76,33 @@ class AppStateNotifier extends Notifier<Appstate> {
     }
 
     // Berechne Wechselgeld
-    final result = state.coinbox.processPayment(
+    final purchaseOutcome = state.coinbox.processPayment(
       transaction.price,
       transaction.insertedCoins,
     );
 
-    if (!result.success) {
-      throw Exception('Zahlung fehlgeschlagen');
+    if (!purchaseOutcome.paymentResult.success) {
+      throw Exception(purchaseOutcome.paymentResult.message);
     }
 
     // Slot aktualisieren (Produkt rausnehmen)
     final updatedSlots = state.slots.map((slot) {
       if (slot.product.id == transaction.product.id) {
-        slot.decrement();
+        // Erstelle eine Kopie des Slots mit reduzierter Menge
+        return slot.copyWith(quantity: slot.quantity - 1);
       }
-      return slot;
+      return slot; // Gib den unveränderten Slot zurück
     }).toList();
 
     // Transaction als completed markieren
-    transaction.completeTransaction(result.changeCoins);
+    transaction.completeTransaction(purchaseOutcome.paymentResult.changeCoins);
 
     // State zurücksetzen
-    state = state.copyWith(slots: updatedSlots, currentTransaction: null);
+    state = state.copyWith(
+      slots: updatedSlots,
+      coinbox: purchaseOutcome.newCoinbox,
+      currentTransaction: null,
+    );
   }
 
   void cancelTransaction() {
@@ -95,37 +110,58 @@ class AppStateNotifier extends Notifier<Appstate> {
     state = state.copyWith(currentTransaction: null);
   }
 
-  void incrementSlot(String productId) {
+  void incrementSlot(String productId) async {
+    // Erstelle eine neue Liste, indem du den richtigen Slot durch eine Kopie ersetzt
     final updatedSlots = state.slots.map((slot) {
       if (slot.product.id == productId) {
-        slot.increment();
+        final newQuantity = slot.quantity < Slot.maxCapacity
+            ? slot.quantity + 1
+            : slot.quantity;
+        return slot.copyWith(quantity: newQuantity);
       }
       return slot;
     }).toList();
 
     state = state.copyWith(slots: updatedSlots);
+
+    // Finde den aktualisierten Slot, um die neue Menge an das Repository zu senden
+    final updatedSlot = updatedSlots.firstWhere(
+      (slot) => slot.product.id == productId,
+    );
+    await _repository.updateSlot(productId, updatedSlot.quantity);
   }
 
-  void decrementSlot(String productId) {
+  void decrementSlot(String productId) async {
     final updatedSlots = state.slots.map((slot) {
       if (slot.product.id == productId) {
-        slot.decrement();
+        // Erstelle eine Kopie des Slots mit reduzierter Menge
+        final newQuantity = slot.quantity > 0 ? slot.quantity - 1 : 0;
+        return slot.copyWith(quantity: newQuantity);
       }
       return slot;
     }).toList();
 
     state = state.copyWith(slots: updatedSlots);
+
+    final updatedSlot = updatedSlots.firstWhere(
+      (slot) => slot.product.id == productId,
+    );
+    await _repository.updateSlot(productId, updatedSlot.quantity);
   }
 
-  void addCoinToBox(int coinValue) {
+  void addCoinToBox(int coinValue) async {
     state.coinbox.addCoin(coinValue, 1);
     // State muss neu gesetzt werden damit Riverpod merkt dass sich was geändert hat
     state = state.copyWith(coinbox: state.coinbox);
+    final newCount = state.coinbox.stock[coinValue] ?? 0;
+    await _repository.updateCoinStock(coinValue, newCount);
   }
 
-  void removeCoinFromBox(int coinValue) {
+  void removeCoinFromBox(int coinValue) async {
     state.coinbox.removeCoin(coinValue, 1);
     state = state.copyWith(coinbox: state.coinbox);
+    final newCount = state.coinbox.stock[coinValue] ?? 0;
+    await _repository.updateCoinStock(coinValue, newCount);
   }
 }
 

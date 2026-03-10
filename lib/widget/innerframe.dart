@@ -3,11 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:snack_automat/models/product.dart';
 import 'package:snack_automat/models/transaction.dart';
 import 'package:snack_automat/provider/app_state_notifier.dart';
-import 'package:snack_automat/storage/snack_service.dart';
 import 'package:snack_automat/widget/slotTile.dart';
-import 'package:snack_automat/models/slot.dart';
 import 'package:snack_automat/widget/coin_menu.dart';
-import 'package:snack_automat/models/coinbox.dart';
 
 class Innerframe extends ConsumerStatefulWidget {
   @override
@@ -28,9 +25,19 @@ class _InnerframeState extends ConsumerState<Innerframe> {
       context: context,
       builder: (BuildContext context) {
         return CoinMenu(
-          onCoinTap: (double value) {
-            int cents = (value * 100).round();
-            ref.read(appStateProvider.notifier).insertCoin(cents);
+          onCoinTap: (int value) {
+            final hasTransaction =
+                ref.read(appStateProvider).currentTransaction != null;
+            if (!hasTransaction) {
+              setState(() {
+                _displaymassage = 'Bitte zuerst ein Produkt wählen';
+              });
+              return;
+            }
+            ref.read(appStateProvider.notifier).insertCoin(value);
+            setState(() {
+              _displaymassage = '';
+            });
           },
         );
       },

@@ -12,12 +12,28 @@ class PaymentResult {
   });
 }
 
+// Eine neue Klasse, die das Ergebnis UND den neuen Zustand der Coinbox enthält
+class PurchaseOutcome {
+  final PaymentResult paymentResult;
+  final Coinbox newCoinbox;
+
+  PurchaseOutcome({required this.paymentResult, required this.newCoinbox});
+}
+
 class Coinbox {
   Map<int, int> _stock = {};
+
+  Map<int, int> get currentStock => Map.from(_stock);
 
   Coinbox() {
     for (int value in Coin.values) {
       _stock[value] = 10;
+    }
+  }
+
+  Coinbox.fromStock(Map<int, int> stock) {
+    for (int value in Coin.values) {
+      _stock[value] = stock[value] ?? 0;
     }
   }
 
@@ -31,6 +47,12 @@ class Coinbox {
   void removeCoin(int coinValue, int amount) {
     if (_stock.containsKey(coinValue) && _stock[coinValue]! >= amount) {
       _stock[coinValue] = _stock[coinValue]! - amount;
+    }
+  }
+
+  void setCoinCount(int coinValue, int newCount) {
+    if (_stock.containsKey(coinValue) && newCount >= 0) {
+      _stock[coinValue] = newCount;
     }
   }
 
@@ -59,16 +81,20 @@ class Coinbox {
     // Diese Münze ist zu groß, überspringen
   }
 
-  PaymentResult processPayment(int price, List<int> insertedCoins) {
+  PurchaseOutcome processPayment(int price, List<int> insertedCoins) {
     //  Gesamtwert der eingeworfenen Münzen berechnen
     int totalInserted = insertedCoins.fold(0, (sum, coin) => sum + coin);
 
     //  Genug Geld?
     if (totalInserted < price) {
-      return PaymentResult(
-        success: false,
-        message: "Nicht genug Geld.",
-        changeCoins: insertedCoins, // Geld direkt wieder ausspucken
+      return PurchaseOutcome(
+        newCoinbox:
+            this, // Es hat sich nichts geändert, gib die alte Coinbox zurück
+        paymentResult: PaymentResult(
+          success: false,
+          message: "Nicht genug Geld.",
+          changeCoins: insertedCoins, // Geld direkt wieder ausspucken
+        ),
       );
     }
 
@@ -86,26 +112,29 @@ class Coinbox {
     // Versuchen, das  Wechselgeld zu berechnen mit den simulierten Münzen mit der tryCalculateChange-Methode
     List<int>? change = _tryCalculateChange(tempStock, changeNeeded);
 
-    //  Die eingeworfenen Münzen zum ECHTEN Bestand (_stock) hinzufügen.
     if (change != null) {
-      for (var coin in insertedCoins) {
-        _stock[coin] = _stock[coin]! + 1;
-      }
-      // Wechselgeld abziehen
-      for (var coin in change) {
-        _stock[coin] = _stock[coin]! - 1;
-      }
-
-      return PaymentResult(
-        success: true,
-        message: "Vielen Dank!",
-        changeCoins: change,
+      // Erfolg! Wir haben das Wechselgeld im `tempStock` berechnet.
+      // `tempStock` repräsentiert jetzt den neuen, korrekten Zustand unserer Kasse.
+      // Erstellen wir also eine neue Coinbox damit.
+      final newCoinbox = Coinbox.fromStock(tempStock);
+      return PurchaseOutcome(
+        newCoinbox: newCoinbox,
+        paymentResult: PaymentResult(
+          success: true,
+          message: "Vielen Dank!",
+          changeCoins: change,
+        ),
       );
     } else {
-      return PaymentResult(
-        success: false,
-        message: "Kein passendes Wechselgeld.",
-        changeCoins: insertedCoins, // Kunde kriegt sein Geld zurück
+      // Fehler, kein Wechselgeld. Gib das Geld zurück und ändere den Bestand nicht.
+      return PurchaseOutcome(
+        newCoinbox:
+            this, // Es hat sich nichts geändert, gib die alte Coinbox zurück
+        paymentResult: PaymentResult(
+          success: false,
+          message: "Kein passendes Wechselgeld.",
+          changeCoins: insertedCoins, // Kunde kriegt sein Geld zurück
+        ),
       );
     }
   }
