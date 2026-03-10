@@ -17,7 +17,7 @@ class MockDataRepository implements DataRepository {
         product: Product(
           id: 'p1',
           name: 'Riegel',
-          price: 150,
+          price: 100,
           image: 'images/snack.png',
         ),
       ),
@@ -33,7 +33,7 @@ class MockDataRepository implements DataRepository {
         product: Product(
           id: 'p3',
           name: 'Kekse',
-          price: 1,
+          price: 100,
           image: 'images/kekse.png',
         ),
       ),
@@ -41,7 +41,7 @@ class MockDataRepository implements DataRepository {
         product: Product(
           id: 'p4',
           name: 'Bonbons',
-          price: 3,
+          price: 300,
           image: 'images/snack.png',
         ),
       ),
@@ -49,7 +49,7 @@ class MockDataRepository implements DataRepository {
         product: Product(
           id: 'p5',
           name: 'Waffeln',
-          price: 1,
+          price: 100,
           image: 'images/snack.png',
         ),
       ),
