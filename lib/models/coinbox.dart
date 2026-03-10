@@ -21,6 +21,19 @@ class Coinbox {
     }
   }
 
+  Map<int, int> get stock => Map.from(_stock);
+  void addCoin(int coinValue, int amount) {
+    if (_stock.containsKey(coinValue)) {
+      _stock[coinValue] = _stock[coinValue]! + amount;
+    }
+  }
+
+  void removeCoin(int coinValue, int amount) {
+    if (_stock.containsKey(coinValue) && _stock[coinValue]! >= amount) {
+      _stock[coinValue] = _stock[coinValue]! - amount;
+    }
+  }
+
   // Gibt eine Liste der Münzen zurück, wenn es klappt.
   // Gibt null zurück, wenn wir nicht passend herausgeben können.
   List<int>? _tryCalculateChange(Map<int, int> tempStock, int changeAmount) {

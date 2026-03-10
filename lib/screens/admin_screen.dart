@@ -1,44 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:snack_automat/models/slot.dart';
-import 'package:snack_automat/storage/snack_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:snack_automat/provider/app_state_notifier.dart';
 import 'package:snack_automat/models/coin.dart';
 
-class Adminscreen extends StatefulWidget {
+class Adminscreen extends ConsumerStatefulWidget {
   const Adminscreen({super.key});
 
   @override
-  State<Adminscreen> createState() => _AdminscreenState();
+  ConsumerState<Adminscreen> createState() => _AdminscreenState();
 }
 
-class _AdminscreenState extends State<Adminscreen> {
-  List<Slot> _slots = [];
-  List<Coin> _coins = [];
-  final SnackService _service = SnackService();
-  @override
-  void initState() {
-    super.initState();
-    _loadSlots();
-  }
-
-  void _loadSlots() {
-    setState(() {
-      _slots = _service.getSlots();
-    });
-    setState(() {
-      _coins = Coin.values.map((wert) => Coin(value: wert, count: 0)).toList();
-    });
-  }
-
-  double get _gesamtGeld {
+class _AdminscreenState extends ConsumerState<Adminscreen> {
+  double _gesamtGeld(Map<int, int> coinStock) {
     int summe = 0;
-    for (var coin in _coins) {
-      summe += coin.value * coin.count;
-    }
-    return summe.toDouble() / 100; // Umwandlung in Euro
+    coinStock.forEach((wert, anzahl) {
+      summe += wert * anzahl;
+    });
+    return summe.toDouble() / 100;
   }
 
   @override
   Widget build(BuildContext context) {
+    final appState = ref.watch(appStateProvider);
+    final slots = appState.slots;
+    final coinStock = appState.coinbox.stock;
+
     return Scaffold(
       appBar: AppBar(title: const Text("Verwaltung")),
       body: Column(
@@ -52,9 +38,9 @@ class _AdminscreenState extends State<Adminscreen> {
           ),
           Expanded(
             child: ListView.builder(
-              itemCount: _slots.length,
+              itemCount: slots.length,
               itemBuilder: (context, index) {
-                final slot = _slots[index];
+                final slot = slots[index];
                 return Card(
                   margin: const EdgeInsets.symmetric(
                     vertical: 5,
@@ -70,12 +56,20 @@ class _AdminscreenState extends State<Adminscreen> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.remove),
-                            onPressed: () => setState(() => slot.decrement()),
+                            onPressed: () {
+                              ref
+                                  .read(appStateProvider.notifier)
+                                  .decrementSlot(slot.product.id);
+                            },
                           ),
                           Text(slot.quantity.toString()),
                           IconButton(
                             icon: const Icon(Icons.add),
-                            onPressed: () => setState(() => slot.increment()),
+                            onPressed: () {
+                              ref
+                                  .read(appStateProvider.notifier)
+                                  .incrementSlot(slot.product.id);
+                            },
                           ),
                         ],
                       ),
@@ -85,12 +79,9 @@ class _AdminscreenState extends State<Adminscreen> {
               },
             ),
           ),
-
-          const Divider(thickness: 2), // Strich zur Trennung
-
+          const Divider(thickness: 2),
           Padding(
-            padding: EdgeInsets.all(8.0),
-
+            padding: const EdgeInsets.all(8.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -98,9 +89,8 @@ class _AdminscreenState extends State<Adminscreen> {
                   "Wechselgeld",
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-
                 Text(
-                  "Gesamt: ${_gesamtGeld.toStringAsFixed(2)} €",
+                  "Gesamt: ${_gesamtGeld(coinStock).toStringAsFixed(2)} €",
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -112,9 +102,10 @@ class _AdminscreenState extends State<Adminscreen> {
           ),
           Expanded(
             child: ListView.builder(
-              itemCount: _coins.length,
+              itemCount: Coin.values.length,
               itemBuilder: (context, index) {
-                final coin = _coins[index];
+                final coinValue = Coin.values[index];
+                final coinCount = coinStock[coinValue] ?? 0;
                 return Card(
                   margin: const EdgeInsets.symmetric(
                     vertical: 10,
@@ -123,21 +114,24 @@ class _AdminscreenState extends State<Adminscreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: ListTile(
-                      leading: Image.asset(Coin.getImage(coin.value)),
-                      // durch 100, um Euro anzuzeigen
-                      title: Text("${(coin.value / 100).toStringAsFixed(2)} €"),
+                      leading: Image.asset(Coin.getImage(coinValue)),
+                      title: Text("${(coinValue / 100).toStringAsFixed(2)} €"),
                       trailing: SizedBox(
                         width: 120,
                         child: Row(
                           children: [
                             IconButton(
                               icon: const Icon(Icons.remove),
-                              onPressed: () => setState(() => coin.decrement()),
+                              onPressed: () => ref
+                                  .read(appStateProvider.notifier)
+                                  .removeCoinFromBox(coinValue),
                             ),
-                            Text(coin.count.toString()),
+                            Text(coinCount.toString()),
                             IconButton(
                               icon: const Icon(Icons.add),
-                              onPressed: () => setState(() => coin.increment()),
+                              onPressed: () => ref
+                                  .read(appStateProvider.notifier)
+                                  .addCoinToBox(coinValue),
                             ),
                           ],
                         ),
